@@ -57,8 +57,9 @@ defmodule Filtrex.Type.Config do
   end
 
   for module <- Filtrex.Condition.condition_modules() do
-    @doc "Generate a config struct for `\#{to_string(module) |> String.slice(7..-1//1)}`"
+    @doc "Generate a config struct for `#{to_string(module) |> String.slice(7..-1//1)}`"
     defmacro unquote(module.type())(key_or_keys, opts \\ [])
+
     defmacro unquote(module.type())(keys, opts) when is_list(keys) do
       type = unquote(module.type())
 
