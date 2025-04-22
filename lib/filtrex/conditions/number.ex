@@ -62,41 +62,52 @@ defmodule Filtrex.Condition.Number do
 
   # Float handling with optional range or list constraint
   defp parse_value(opts, float) when is_float(float) do
-    allowed = opts[:allowed_values]
-
-    cond do
-      opts[:allow_decimal] == false ->
-        {:error, parse_value_type_error(float, type())}
-
-      allowed == nil ->
-        {:ok, float}
-
-      # Match a Range struct directly (avoids deprecated Range.range?/1)
-      %Range{first: start, last: final} = allowed ->
-        if float >= start and float <= final do
+    # First, reject decimals if not allowed
+    if opts[:allow_decimal] == false do
+      {:error, parse_value_type_error(float, type())}
+    else
+      case opts[:allowed_values] do
+        nil ->
           {:ok, float}
-        else
-          {:error, "Provided number value not allowed"}
-        end
 
-      is_list(allowed) and float in allowed ->
-        {:ok, float}
+        %Range{first: first, last: last} ->
+          # Use Range match instead of deprecated Range.range?/1
+          if float >= first and float <= last do
+            {:ok, float}
+          else
+            {:error, "Provided number value not allowed"}
+          end
 
-      is_list(allowed) ->
-        {:error, "Provided number value not allowed"}
+        list when is_list(list) ->
+          # only two cases needed: in list or not
+          if float in list do
+            {:ok, float}
+          else
+            {:error, "Provided number value not allowed"}
+          end
+
+        _other ->
+          {:error, parse_value_type_error(float, type())}
+      end
     end
   end
 
   # Integer handling with optional list constraint
   defp parse_value(opts, int) when is_integer(int) do
-    allowed = opts[:allowed_values]
-
-    cond do
-      allowed == nil or int in allowed ->
+    case opts[:allowed_values] do
+      nil ->
         {:ok, int}
 
-      true ->
-        {:error, "Provided number value not allowed"}
+      list when is_list(list) ->
+        if int in list do
+          {:ok, int}
+        else
+          {:error, "Provided number value not allowed"}
+        end
+
+      _other ->
+        # non‐list / non‐nil allowed_values → treat as type error
+        {:error, parse_value_type_error(int, type())}
     end
   end
 
@@ -105,9 +116,9 @@ defmodule Filtrex.Condition.Number do
   defimpl Filtrex.Encoder do
     encoder "equals",         "does not equal", "column = ?"
     encoder "does not equal", "equals",         "column != ?"
-    encoder "greater than",   "less than or",  "column > ?"
-    encoder "less than or",   "greater than",  "column <= ?"
+    encoder "greater than",   "less than or",   "column > ?"
+    encoder "less than or",   "greater than",   "column <= ?"
     encoder "less than",      "greater than or","column < ?"
-    encoder "greater than or","less than",     "column >= ?"
+    encoder "greater than or","less than",      "column >= ?"
   end
 end
